@@ -1,0 +1,18 @@
+=== WEEKLY RETENTION BRIEF ===
+
+Retention Brief: High-Risk Customers
+
+**Summary:**
+
+We have identified 3 customers at high risk of churning this week, with estimated revenue at stake of $1,500 ($500 x 3 customers). Our churn prediction model has identified Contract and OnlineSecurity as the top drivers of customer churn for these customers.
+
+**Customer Breakdown:**
+
+* CUST_001: High risk due to contract and high monthly charges. Estimated revenue at stake: $500.
+	+ Recommended action: Review and adjust contract terms to reduce monthly charges.
+* CUST_002: High risk due to contract and high monthly charges. Estimated revenue at stake: $500.
+	+ Recommended action: Review and adjust contract terms to reduce monthly charges.
+* CUST_003: High risk due to low online security. Estimated revenue at stake: $500.
+	+ Recommended action: Offer additional online security features or resources to improve security.
+
+These actions are designed to address the top drivers of churn for each customer and mitigate the risk of loss.
