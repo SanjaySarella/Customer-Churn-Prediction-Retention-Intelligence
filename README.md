@@ -6,8 +6,7 @@ A comprehensive machine learning pipeline and AI-driven retention system designe
 
 ## 🚀 Project Overview
 
-Live Dashboard
-View on Tableau Public
+[View on Tableau Public]https://public.tableau.com/app/profile/sanjay.sarella/viz/TelecomChurnIntelligenceCustomerRetentionStrategy/TelecomChurnIntelligenceDashboard500KAnnualRevenueatRisk?publish=yes
 
 This project transforms raw Telco customer data into actionable business intelligence. It covers the full lifecycle from EDA to model deployment and local interpretability.
 
