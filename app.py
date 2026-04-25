@@ -20,7 +20,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Customer Churn Prediction — Retention Intelligence")
+st.title("Customer Churn Prediction — Retention Intelligence")
 st.markdown("*AI-powered churn prediction and retention strategy for telecom customers*")
 st.divider()
 
