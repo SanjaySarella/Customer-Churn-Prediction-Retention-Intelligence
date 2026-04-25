@@ -32,21 +32,21 @@ An end-to-end churn intelligence system built on 7,043 real Telco customer recor
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  DATA LAYER                                                  │
+│  DATA LAYER                                                 |
 │  7,043 Telco customer records                               │
 │  20 features: tenure, contract type, charges, services      │
 │  Target: Churn (Yes / No)                                   │
 └─────────────────────────┬───────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────────┐
-│  ML LAYER                                                    │
-│  Random Forest vs XGBoost — head-to-head evaluation        │
+│  ML LAYER                                                   |
+│  Random Forest vs XGBoost — head-to-head evaluation         |
 │  XGBoost selected as winner on ROC-AUC                      │
 │  SHAP TreeExplainer → per-customer feature attribution      │
 └─────────────────────────┬───────────────────────────────────┘
                           │
 ┌─────────────────────────▼───────────────────────────────────┐
-│  AGENT LAYER                                                 │
+│  AGENT LAYER                                                │
 │  Groq + Llama 3.3-70B                                       │
 │  Input: churn probability + SHAP drivers + customer profile │
 │  Output: Risk assessment + 3 retention actions + offer      │
@@ -72,7 +72,7 @@ An end-to-end churn intelligence system built on 7,043 real Telco customer recor
 ## What Makes This Different
 
 **Head-to-head model evaluation**
-Both Random Forest and XGBoost were trained and evaluated on the same data. The winner was selected based on ROC-AUC — not assumed. The modeling notebook documents both results transparently.
+Both Random Forest and XGBoost were trained and evaluated on the same data. The winner was selected based on ROC-AUC - not assumed. The modeling notebook documents both results transparently.
 
 **Per-customer SHAP explanations**
 Global feature importance tells you what drives churn on average. Per-customer SHAP waterfall charts tell you exactly why this specific customer is at risk — whether it is their contract type, tenure, monthly charges, or lack of tech support. The distinction matters for retention strategy.
@@ -81,7 +81,7 @@ Global feature importance tells you what drives churn on average. Per-customer S
 The AI agent does not generate a generic retention script. It reads the actual SHAP values for each customer and builds a strategy around the specific factors driving their churn risk. A customer at risk due to high monthly charges gets a different recommendation than one at risk due to a month-to-month contract.
 
 **Deployed on GCP Cloud Run**
-Containerized with Docker and deployed on Google Cloud Run. The app trains the model on first load from the raw dataset — no separate model file required, no external dependencies beyond what is in requirements.txt.
+Containerized with Docker and deployed on Google Cloud Run. The app trains the model on first load from the raw dataset - no separate model file required, no external dependencies beyond what is in requirements.txt.
 
 ---
 
