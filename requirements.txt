@@ -1,3 +1,4 @@
+streamlit
 pandas
 numpy
 scikit-learn
@@ -6,9 +7,7 @@ shap
 matplotlib
 seaborn
 langchain
+langchain-groq
 langchain-core
-langchain-community
-langchain-openai
-langchain-ollama
-langsmith
-openai
+groq
+python-dotenv

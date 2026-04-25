@@ -1,0 +1,11 @@
+.venv
+.git
+__pycache__
+*.pyc
+.env
+.ipynb_checkpoints
+*.log
+.idea
+.vscode
+Thumbs.db
+notebooks
