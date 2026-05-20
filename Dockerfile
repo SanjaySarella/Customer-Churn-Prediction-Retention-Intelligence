@@ -1,12 +1,20 @@
-FROM python:3.11-slim
+FROM node:18-slim AS frontend-build
+WORKDIR /frontend
+COPY frontend/package.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
+FROM python:3.11-slim
 WORKDIR /app
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ ./backend/
+COPY data/ ./data/
+COPY --from=frontend-build /frontend/build ./static
 
-EXPOSE 8080
+ENV PYTHONPATH=/app
 
-CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
