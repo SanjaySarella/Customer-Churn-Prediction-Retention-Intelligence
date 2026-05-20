@@ -22,3 +22,8 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets — never commit
+.env
+*.env
+!.env.example
