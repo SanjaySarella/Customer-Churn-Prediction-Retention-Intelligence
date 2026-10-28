@@ -1,149 +1,31 @@
-# Customer Churn Prediction — Retention Intelligence
+# Customer Churn Analysis
 
-**Sanjay Sarella** | M.S. Data Analytics, Oklahoma City University
+A historical telecom study by Sanjay Sarella. Three outputs: profile score with observed segment context, independent holdout evaluation, and a threshold-based review workload simulation.
 
-[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://python.org)
-[![XGBoost](https://img.shields.io/badge/XGBoost-Classifier-orange)](https://xgboost.readthedocs.io)
-[![SHAP](https://img.shields.io/badge/SHAP-Explainability-green)](https://shap.readthedocs.io)
-[![Groq](https://img.shields.io/badge/Groq-Llama%203.3--70B-green)](https://console.groq.com)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Live%20App-red?logo=streamlit)](https://streamlit.io)
-[![GCP](https://img.shields.io/badge/GCP-Cloud%20Run-blue?logo=googlecloud)](https://cloud.google.com)
+## Model and evidence
 
-## Live App
-**[Launch App](https://churn-intelligence-app-646m5mi6fq-uc.a.run.app/)**
+The model is a logistic regression baseline with five declared inputs: tenure, monthly charges, contract, internet service and payment method. Demographics, fabricated total charges, unsolicited discounts, AI quality percentages and claimed savings are excluded from the supported runtime.
 
----
+7,043 unique customer records are split into 5,634 training and 1,409 test records using a stratified 80/20 split and seed 42. Numeric imputation/scaling and categorical encoding are fitted inside a pipeline on training data only. Model settings are fixed, not selected using holdout results. The app reports ROC-AUC, average precision, Brier score, log loss and five-bin calibration evidence. Its comparison is a constant training-churn-rate baseline. This is historical internal validation, not external or future-period validation.
 
-## The Problem
+Observed local results: ROC-AUC 0.8323; average precision 0.6267; Brier score 0.1424 versus 0.1950 baseline; log loss 0.4303 versus 0.5787 baseline. Reproduce using the exact dependency versions and data fingerprint before comparing releases. No claim is made that this model outperforms the retired XGBoost model, which was not re-evaluated under this new protocol.
 
-Acquiring a new customer costs 5–7x more than retaining an existing one. In telecom, monthly churn rates of 2–3% compound into significant annual revenue loss — yet most retention efforts are reactive, targeting customers after they have already decided to leave.
+Profile scores are estimates, not individual certainty. Same-contract/internet segment rates are descriptive, not causal explanations. The dataset supplies no reliable prediction horizon or intervention outcome. Review thresholds are explored on held-out historical records for illustration; choosing a policy after inspecting these results requires fresh independent evaluation. Customer IDs are not displayed in the review list.
 
-This system identifies at-risk customers before they churn and generates a specific retention strategy for each one.
+## Run and test
 
----
-
-## What This Does
-
-An end-to-end churn intelligence system built on 7,043 real Telco customer records. It predicts individual churn probability using XGBoost, explains every prediction at the feature level using SHAP, surfaces similar at-risk customers from historical data, and generates a targeted retention brief via a Groq + Llama 3.3-70B AI agent — all from a single interface.
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  DATA LAYER                                                 |
-│  7,043 Telco customer records                               │
-│  20 features: tenure, contract type, charges, services      │
-│  Target: Churn (Yes / No)                                   │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│  ML LAYER                                                   |
-│  Random Forest vs XGBoost — head-to-head evaluation         |
-│  XGBoost selected as winner on ROC-AUC                      │
-│  SHAP TreeExplainer → per-customer feature attribution      │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│  AGENT LAYER                                                │
-│  Groq + Llama 3.3-70B                                       │
-│  Input: churn probability + SHAP drivers + customer profile │
-│  Output: Risk assessment + 3 retention actions + offer      │
-└─────────────────────────────────────────────────────────────┘
+```sh
+python -m pip install -r backend/requirements.txt pytest httpx
+cd frontend
+npm ci --legacy-peer-deps
+npm run build
+cd ..
+cp -r frontend/build static
+python -m uvicorn backend.main:app --port 8080
 ```
 
----
+`python -m pytest tests -q` verifies split isolation, train-only preprocessing, deterministic scores, segment reconciliation, threshold endpoints and API rejection of invalid or undeclared inputs. Historical agent modules, notebooks and figures are retained for provenance only, not used by the supported runtime. The old Streamlit entry point is retired.
 
-## Key Results
+## Deployment boundary
 
-| Metric | Value |
-|---|---|
-| Dataset | 7,043 real Telco customer records |
-| Models evaluated | Random Forest vs XGBoost |
-| Winner | XGBoost (higher ROC-AUC) |
-| Features | 20 customer attributes |
-| Churn rate in dataset | ~26% |
-| Deployment | GCP Cloud Run — live public URL |
-| Total cost | $0 — fully open source |
-
----
-
-## What Makes This Different
-
-**Head-to-head model evaluation**
-Both Random Forest and XGBoost were trained and evaluated on the same data. The winner was selected based on ROC-AUC - not assumed. The modeling notebook documents both results transparently.
-
-**Per-customer SHAP explanations**
-Global feature importance tells you what drives churn on average. Per-customer SHAP waterfall charts tell you exactly why this specific customer is at risk — whether it is their contract type, tenure, monthly charges, or lack of tech support. The distinction matters for retention strategy.
-
-**Retention strategy tied to SHAP drivers**
-The AI agent does not generate a generic retention script. It reads the actual SHAP values for each customer and builds a strategy around the specific factors driving their churn risk. A customer at risk due to high monthly charges gets a different recommendation than one at risk due to a month-to-month contract.
-
-**Deployed on GCP Cloud Run**
-Containerized with Docker and deployed on Google Cloud Run. The app trains the model on first load from the raw dataset - no separate model file required, no external dependencies beyond what is in requirements.txt.
-
----
-
-## How to Use the App
-
-1. Open the **[live app](https://churn-intelligence-app-646m5mi6fq-uc.a.run.app/)**
-2. Configure a customer profile in the sidebar — tenure, contract type, services, charges
-3. Click **Run Churn Analysis**
-4. The system returns:
-   - Churn probability with risk level (High / Medium / Low)
-   - SHAP waterfall chart showing the top 6 drivers for this customer
-   - Similar at-risk customers from historical data
-   - AI-generated retention brief with 3 specific actions and an offer recommendation
-
----
-
-## Tech Stack
-
-| Category | Tools |
-|---|---|
-| ML & Explainability | XGBoost · Random Forest · Scikit-learn · SHAP |
-| AI Agent | Groq + Llama 3.3-70B · LangChain |
-| App | Streamlit |
-| Deployment | Docker · GCP Cloud Run |
-| Data | Pandas · NumPy · Matplotlib · Seaborn |
-| Visualization | Tableau Public · SHAP plots |
-| Dev | Python 3.11 · Jupyter · Git |
-
-**100% open source. Zero cost.**
-
----
-
-## Project Structure
-
-```
-Customer-Churn-Prediction-Retention-Intelligence/
-├── app.py                        ← Streamlit app — prediction, SHAP, agent
-├── data/
-│   └── telco_churn.csv           ← 7,043 Telco customer records
-├── customer-churn-intelligence/
-│   └── notebooks/
-│       ├── 01_eda.ipynb          ← Exploratory data analysis
-│       ├── 02_modeling.ipynb     ← RF vs XGBoost head-to-head evaluation
-│       ├── 03_shap.ipynb         ← SHAP global and per-customer analysis
-│       └── 04_langchain_agent.ipynb ← AI retention agent development
-├── outputs/                      ← SHAP plots and exports
-├── Dockerfile                    ← GCP Cloud Run containerization
-├── requirements.txt
-└── README.md
-```
-
----
-
-## Tableau Public Dashboard
-**[View Live Dashboard](https://public.tableau.com/app/profile/sanjay.sarella/viz/TelecomChurnIntelligenceCustomerRetentionStrategy/TelecomChurnIntelligenceDashboard500KAnnualRevenueatRisk)**
-
----
-
-## Author
-
-**Sanjay Sarella**
-M.S. Data Analytics — Oklahoma City University
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Sanjay%20Sarella-blue?logo=linkedin)](https://linkedin.com/in/sanjaysarella)
-[![GitHub](https://img.shields.io/badge/GitHub-SanjaySarella-black?logo=github)](https://github.com/SanjaySarella)
+Candidate implementation, not deployed. Preserve the existing `churn-intelligence-app` Cloud Run service and URL. Confirm its project, region, configuration and rollback revision before staging. Container and live-browser verification remain required; cloud deployment access is not available in the current environment.

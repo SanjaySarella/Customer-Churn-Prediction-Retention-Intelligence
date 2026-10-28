@@ -1,151 +1,77 @@
-import pandas as pd
+"""Reproducible five-feature baseline; no intervention or savings claims."""
+from functools import lru_cache
+from pathlib import Path
+import hashlib
 import numpy as np
-import shap
-from xgboost import XGBClassifier
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import roc_auc_score, classification_report
-from typing import Dict, Any, List, Tuple
-import os
+from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss, log_loss, precision_score, recall_score
+from sklearn.calibration import calibration_curve
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "telco_churn.csv")
+DATA = Path(__file__).resolve().parents[1] / 'data/telco_churn.csv'
+NUM = ['tenure','MonthlyCharges']
+CAT = ['Contract','InternetService','PaymentMethod']
+FEATURES = NUM + CAT
 
-_model = None
-_explainer = None
-_feature_cols = None
-_X_train = None
+def build_pipeline():
+    return Pipeline([('prepare',ColumnTransformer([
+        ('numeric',Pipeline([('impute',SimpleImputer(strategy='median')),('scale',StandardScaler())]),NUM),
+        ('category',OneHotEncoder(handle_unknown='error'),CAT)])),
+        ('model',LogisticRegression(C=1.0,max_iter=2000,random_state=42))])
 
-
-def build_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-    df = df.copy()
-
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df["TotalCharges"].fillna(df["TotalCharges"].median(), inplace=True)
-    df.drop(columns=["customerID"], inplace=True, errors="ignore")
-
-    binary_cols = ["gender", "Partner", "Dependents", "PhoneService",
-                   "PaperlessBilling", "Churn"]
-    for col in binary_cols:
-        if col in df.columns:
-            df[col] = LabelEncoder().fit_transform(df[col])
-
-    multi_cols = ["MultipleLines", "InternetService", "OnlineSecurity",
-                  "OnlineBackup", "DeviceProtection", "TechSupport",
-                  "StreamingTV", "StreamingMovies", "Contract", "PaymentMethod"]
-    df = pd.get_dummies(df, columns=multi_cols, drop_first=True)
-
-    X = df.drop(columns=["Churn"])
-    y = df["Churn"]
-    return X, y
-
-
+@lru_cache(maxsize=1)
 def get_model():
-    global _model, _explainer, _feature_cols, _X_train
+    df = pd.read_csv(DATA)
+    if df.customerID.isna().any() or df.customerID.duplicated().any():
+        raise ValueError('Customer identifiers must be complete and unique.')
+    if not df.Churn.isin(['Yes','No']).all():
+        raise ValueError('Unexpected churn labels.')
+    if df[FEATURES].isna().any().any() or not np.isfinite(df[NUM]).all().all():
+        raise ValueError('Missing or nonfinite model inputs in source data.')
+    train, test = train_test_split(df,test_size=.2,stratify=df.Churn,random_state=42)
+    model = build_pipeline()
+    model.fit(train[FEATURES],train.Churn.eq('Yes').astype(int))
+    y = test.Churn.eq('Yes').astype(int).to_numpy()
+    p = model.predict_proba(test[FEATURES])[:,1]
+    base = np.full(len(test),train.Churn.eq('Yes').mean())
+    frac, mean = calibration_curve(y,p,n_bins=5,strategy='quantile')
+    report = {'model':'Logistic regression, five declared inputs', 'dataset_rows':len(df),
+              'training_rows':len(train),'test_rows':len(test), 'split':'Stratified 80/20 random split, seed 42. Historical internal validation, not a future-time or external validation.',
+              'roc_auc':float(roc_auc_score(y,p)), 'average_precision':float(average_precision_score(y,p)),
+              'brier_score':float(brier_score_loss(y,p)), 'baseline_brier':float(brier_score_loss(y,base)),
+              'log_loss':float(log_loss(y,p)), 'baseline_log_loss':float(log_loss(y,base)),
+              'test_churn_rate':float(y.mean()),
+              'calibration':[{'mean_score':float(a),'observed_churn':float(b)} for a,b in zip(mean,frac)],
+              'sha256':hashlib.sha256(DATA.read_bytes()).hexdigest(),
+              'limitations':'Scores are historical model estimates, not individual certainty. Dataset has no future observation window or intervention outcomes. Changing an input does not establish a causal effect or savings.'}
+    return model, df, test, p, report
 
-    if _model is not None:
-        return _model, _explainer, _feature_cols
+def profile_score(tenure,monthly_charges,contract,internet_service,payment_method):
+    model,df,_,_,_ = get_model()
+    row = pd.DataFrame([{'tenure':tenure,'MonthlyCharges':monthly_charges,'Contract':contract,
+                         'InternetService':internet_service,'PaymentMethod':payment_method}])
+    score = float(model.predict_proba(row[FEATURES])[0,1])
+    # Report observed historical segment; never call this an individual explanation.
+    segment = df.loc[(df.Contract==contract)&(df.InternetService==internet_service)]
+    return {'score':score,'inputs':row.iloc[0].to_dict(), 'segment_count':len(segment),
+            'segment_churn_rate':float(segment.Churn.eq('Yes').mean()) if len(segment) else None,
+            'interpretation':'Review score only. Segment rates are descriptive and do not explain why this individual would churn. No discount or revenue-saved recommendation is inferred.'}
 
-    df = pd.read_csv(DATA_PATH)
-    X, y = build_features(df)
-    _feature_cols = X.columns.tolist()
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-    _X_train = X_train
-
-    _model = XGBClassifier(
-        n_estimators=100,
-        random_state=42,
-        eval_metric="logloss",
-        verbosity=0
-    )
-    _model.fit(X_train, y_train)
-
-    _explainer = shap.TreeExplainer(_model)
-
-    auc = roc_auc_score(y_test, _model.predict_proba(X_test)[:, 1])
-    print(f"Model loaded — ROC-AUC: {auc:.4f}")
-
-    return _model, _explainer, _feature_cols
-
-
-def predict(customer_data: Dict[str, Any]) -> Dict[str, Any]:
-    model, explainer, feature_cols = get_model()
-    df = pd.read_csv(DATA_PATH)
-    X_full, _ = build_features(df)
-
-    input_dict = {
-        "gender": 1 if customer_data.get("gender") == "Male" else 0,
-        "SeniorCitizen": 1 if customer_data.get("senior_citizen") else 0,
-        "Partner": 1 if customer_data.get("partner") else 0,
-        "Dependents": 1 if customer_data.get("dependents") else 0,
-        "tenure": customer_data.get("tenure", 12),
-        "PhoneService": 1 if customer_data.get("phone_service") else 0,
-        "PaperlessBilling": 1 if customer_data.get("paperless_billing") else 0,
-        "MonthlyCharges": customer_data.get("monthly_charges", 65.0),
-        "TotalCharges": customer_data.get("monthly_charges", 65.0) * customer_data.get("tenure", 12),
-    }
-
-    cat_cols = {
-        "MultipleLines": customer_data.get("multiple_lines", "No"),
-        "InternetService": customer_data.get("internet_service", "DSL"),
-        "OnlineSecurity": customer_data.get("online_security", "No"),
-        "OnlineBackup": customer_data.get("online_backup", "No"),
-        "DeviceProtection": customer_data.get("device_protection", "No"),
-        "TechSupport": customer_data.get("tech_support", "No"),
-        "StreamingTV": customer_data.get("streaming_tv", "No"),
-        "StreamingMovies": customer_data.get("streaming_movies", "No"),
-        "Contract": customer_data.get("contract", "Month-to-month"),
-        "PaymentMethod": customer_data.get("payment_method", "Electronic check"),
-    }
-
-    for col, val in cat_cols.items():
-        for feat in feature_cols:
-            if feat.startswith(f"{col}_"):
-                input_dict[feat] = 1 if feat == f"{col}_{val}" else 0
-
-    input_df = pd.DataFrame([input_dict])
-    for col in feature_cols:
-        if col not in input_df.columns:
-            input_df[col] = 0
-    input_df = input_df[feature_cols]
-
-    churn_prob = float(model.predict_proba(input_df)[0][1])
-    risk_level = "HIGH" if churn_prob > 0.7 else "MEDIUM" if churn_prob > 0.4 else "LOW"
-
-    sv = explainer.shap_values(input_df)
-    sv_values = sv[0] if isinstance(sv, list) else sv[0]
-
-    drivers = sorted(
-        zip(feature_cols, sv_values),
-        key=lambda x: abs(x[1]),
-        reverse=True
-    )[:8]
-
-    shap_data = [
-        {"feature": d[0].replace("_", " ")[:30], "value": round(float(d[1]), 4)}
-        for d in drivers
-    ]
-
-    # Similar at-risk customers
-    df_orig = pd.read_csv(DATA_PATH)
-    df_orig["TotalCharges"] = pd.to_numeric(df_orig["TotalCharges"], errors="coerce")
-    tenure = customer_data.get("tenure", 12)
-    monthly = customer_data.get("monthly_charges", 65.0)
-
-    similar = df_orig[
-        (df_orig["tenure"].between(max(0, tenure - 6), tenure + 6)) &
-        (df_orig["MonthlyCharges"].between(max(0, monthly - 15), monthly + 15)) &
-        (df_orig["Churn"] == "Yes")
-    ].head(5)[["tenure", "MonthlyCharges", "Contract", "InternetService", "Churn"]]
-
-    return {
-        "churn_probability": round(churn_prob, 4),
-        "risk_level": risk_level,
-        "churn_percentage": round(churn_prob * 100, 1),
-        "shap_drivers": shap_data,
-        "similar_customers": similar.to_dict("records"),
-        "monthly_charges": monthly,
-        "tenure": tenure,
-    }
+def review_queue(threshold):
+    _,_,test,p,_ = get_model()
+    y = test.Churn.eq('Yes').astype(int).to_numpy()
+    selected = p >= threshold
+    rows = test[FEATURES+['Churn']].copy()
+    # Anonymous display identifiers; retain source IDs only in local split verification.
+    rows['Review ID'] = ['holdout-'+str(i+1) for i in range(len(rows))]
+    rows['Score'] = p
+    return {'threshold':threshold,'selected':int(selected.sum()),'total':len(test),
+            'precision':float(precision_score(y,selected,zero_division=0)) if selected.any() else None,
+            'recall':float(recall_score(y,selected,zero_division=0)),
+            'rows':rows.loc[selected].sort_values('Score',ascending=False).to_dict('records'),
+            'note':'Historical holdout simulation. Actual outcomes are shown for evaluation only and are never model inputs. Threshold exploration on this holdout is illustrative; a chosen policy needs new independent evaluation.'}
