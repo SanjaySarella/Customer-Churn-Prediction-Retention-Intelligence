@@ -9,3 +9,8 @@ __pycache__
 .vscode
 Thumbs.db
 notebooks
+frontend/node_modules
+frontend/build
+static
+validation
+tests
