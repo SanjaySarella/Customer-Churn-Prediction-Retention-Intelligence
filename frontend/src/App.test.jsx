@@ -19,6 +19,6 @@ test('error message is visible without a successful result',async()=>{
  global.fetch=jest.fn().mockResolvedValueOnce({ok:true,json:async()=>info}).mockResolvedValueOnce({ok:false,json:async()=>({detail:'Invalid'})});
  await act(async()=>root.render(<App/>));
  await act(async()=>container.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
- expect(container.querySelector('[role="alert"]').textContent).toContain('Invalid inputs');
- expect(container.textContent).not.toContain('Estimated model score');
+ expect(container.querySelector('[role="alert"]').textContent).toContain('Review the input values');
+ expect(container.textContent).not.toContain('Profile churn score');
 });
