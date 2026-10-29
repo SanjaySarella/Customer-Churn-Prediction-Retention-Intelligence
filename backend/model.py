@@ -39,6 +39,7 @@ def get_model():
     y = test.Churn.eq('Yes').astype(int).to_numpy()
     p = model.predict_proba(test[FEATURES])[:,1]
     base = np.full(len(test),train.Churn.eq('Yes').mean())
+    selected_70 = p >= .70
     frac, mean = calibration_curve(y,p,n_bins=5,strategy='quantile')
     report = {'model':'Logistic regression, five declared inputs', 'dataset_rows':len(df),
               'training_rows':len(train),'test_rows':len(test), 'split':'Stratified 80/20 random split, seed 42. Historical internal validation, not a future-time or external validation.',
@@ -46,6 +47,13 @@ def get_model():
               'brier_score':float(brier_score_loss(y,p)), 'baseline_brier':float(brier_score_loss(y,base)),
               'log_loss':float(log_loss(y,p)), 'baseline_log_loss':float(log_loss(y,base)),
               'test_churn_rate':float(y.mean()),
+              'quality':{'duplicate_customer_ids':int(df.customerID.duplicated().sum()),
+                         'missing_model_inputs':int(df[FEATURES].isna().sum().sum()),
+                         'unexpected_target_labels':int((~df.Churn.isin(['Yes','No'])).sum())},
+              'capacity_example':{'threshold':.70,'selected':int(selected_70.sum()),
+                                  'total':len(test),
+                                  'precision':float(precision_score(y,selected_70,zero_division=0)),
+                                  'recall':float(recall_score(y,selected_70,zero_division=0))},
               'calibration':[{'mean_score':float(a),'observed_churn':float(b)} for a,b in zip(mean,frac)],
               'sha256':hashlib.sha256(DATA.read_bytes()).hexdigest(),
               'limitations':'Scores are historical model estimates, not individual certainty. Dataset has no future observation window or intervention outcomes. Changing an input does not establish a causal effect or savings.'}
