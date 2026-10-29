@@ -44,7 +44,11 @@ def test_input_rejection():
     assert client.post('/predict',json={}).status_code==200
 
 def test_model_info_and_queue():
-    assert client.get('/model-info').json()['test_rows']==1409
+    info=client.get('/model-info').json()
+    assert info['test_rows']==1409
+    assert info['quality']['duplicate_customer_ids']==0
+    assert info['quality']['missing_model_inputs']==0
+    assert info['capacity_example']['selected']==99
     r=client.post('/review',json={'threshold':.5})
     assert r.status_code==200
     assert all(x['Score']>=.5 for x in r.json()['rows'])
