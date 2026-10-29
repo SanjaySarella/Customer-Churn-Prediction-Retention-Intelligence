@@ -1,0 +1,97 @@
+{
+  "independently_reconciled_scores": 1409,
+  "maximum_numeric_difference": 1.1102230246251565e-16,
+  "subgroups": [
+    {
+      "field": "Contract",
+      "group": "Month-to-month",
+      "n": 773,
+      "observed_churn": 0.425614489003881,
+      "mean_score": 0.42934771049076276,
+      "brier": 0.2100145450878186,
+      "roc_auc": 0.7223328952052357
+    },
+    {
+      "field": "Contract",
+      "group": "One year",
+      "n": 300,
+      "observed_churn": 0.12,
+      "mean_score": 0.11600189471767006,
+      "brier": 0.09953797130508171,
+      "roc_auc": 0.7089646464646464
+    },
+    {
+      "field": "Contract",
+      "group": "Two year",
+      "n": 336,
+      "observed_churn": 0.026785714285714284,
+      "mean_score": 0.03097438070750478,
+      "brier": 0.025100141325070394,
+      "roc_auc": 0.8069996602106694
+    },
+    {
+      "field": "InternetService",
+      "group": "DSL",
+      "n": 484,
+      "observed_churn": 0.20041322314049587,
+      "mean_score": 0.18790302315822138,
+      "brier": 0.13009040747120046,
+      "roc_auc": 0.8088388076400543
+    },
+    {
+      "field": "InternetService",
+      "group": "Fiber optic",
+      "n": 613,
+      "observed_churn": 0.4110929853181077,
+      "mean_score": 0.43012056097297013,
+      "brier": 0.19286086937385147,
+      "roc_auc": 0.7697093611221035
+    },
+    {
+      "field": "InternetService",
+      "group": "No",
+      "n": 312,
+      "observed_churn": 0.08012820512820513,
+      "mean_score": 0.07206658159414205,
+      "brier": 0.06233593617756408,
+      "roc_auc": 0.8868989547038327
+    },
+    {
+      "field": "PaymentMethod",
+      "group": "Bank transfer (automatic)",
+      "n": 300,
+      "observed_churn": 0.19,
+      "mean_score": 0.1628345860294992,
+      "brier": 0.10966800562511035,
+      "roc_auc": 0.8584217746011118
+    },
+    {
+      "field": "PaymentMethod",
+      "group": "Credit card (automatic)",
+      "n": 309,
+      "observed_churn": 0.1650485436893204,
+      "mean_score": 0.15818798899765915,
+      "brier": 0.10260492651193019,
+      "roc_auc": 0.8540051679586563
+    },
+    {
+      "field": "PaymentMethod",
+      "group": "Electronic check",
+      "n": 474,
+      "observed_churn": 0.4345991561181435,
+      "mean_score": 0.45466597884489096,
+      "brier": 0.19897753984118086,
+      "roc_auc": 0.7615019562382264
+    },
+    {
+      "field": "PaymentMethod",
+      "group": "Mailed check",
+      "n": 326,
+      "observed_churn": 0.18404907975460122,
+      "mean_score": 0.1958638103091333,
+      "brier": 0.12796197658034572,
+      "roc_auc": 0.8085526315789474
+    }
+  ],
+  "scope": "Historical holdout subgroup diagnostics; not external validation or evidence of intervention effectiveness."
+}

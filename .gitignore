@@ -27,3 +27,11 @@ Thumbs.db
 .env
 *.env
 !.env.example
+
+# Local validation and frontend build products
+node_modules/
+static/
+.pytest_cache/
+__pycache__/
+
+frontend/build/

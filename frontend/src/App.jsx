@@ -1,274 +1,34 @@
-import { useState } from "react";
-import { predictChurn } from "./api";
-import InputForm from "./components/InputForm";
-import RiskCard from "./components/RiskCard";
-import ShapChart from "./components/ShapChart";
-import AiBrief from "./components/AiBrief";
-import SimilarCustomers from "./components/SimilarCustomers";
-
-export default function App() {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (formData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await predictChurn(formData);
-      setResult(data);
-    } catch (err) {
-      setError(err.response?.data?.detail || "Analysis failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={styles.root}>
-      {/* NAV */}
-      <nav style={styles.nav}>
-        <span style={styles.navLogo}>CHURN INTELLIGENCE</span>
-        <span style={styles.navSub}>Customer Retention System · Financial Services</span>
-      </nav>
-
-      <div style={styles.layout}>
-        {/* SIDEBAR */}
-        <aside style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>
-            <h2 style={styles.sidebarTitle}>Customer Profile</h2>
-            <p style={styles.sidebarSub}>Configure customer attributes and run analysis</p>
-          </div>
-          <InputForm onSubmit={handleSubmit} loading={loading} />
-        </aside>
-
-        {/* MAIN CONTENT */}
-        <main style={styles.main}>
-          {!result && !loading && (
-            <div style={styles.empty}>
-              <div style={styles.emptyIcon}>◎</div>
-              <h3 style={styles.emptyTitle}>Configure a customer profile</h3>
-              <p style={styles.emptySub}>
-                Set the customer attributes in the sidebar and click
-                Run Analysis to generate churn prediction, SHAP attribution,
-                and AI retention strategy.
-              </p>
-              <div style={styles.emptyStats}>
-                <div style={styles.emptyStat}>
-                  <span style={styles.emptyStatNum}>7,043</span>
-                  <span style={styles.emptyStatLabel}>Training Records</span>
-                </div>
-                <div style={styles.emptyStatDiv} />
-                <div style={styles.emptyStat}>
-                  <span style={styles.emptyStatNum}>$500K+</span>
-                  <span style={styles.emptyStatLabel}>Recoverable Revenue</span>
-                </div>
-                <div style={styles.emptyStatDiv} />
-                <div style={styles.emptyStat}>
-                  <span style={styles.emptyStatNum}>XGBoost</span>
-                  <span style={styles.emptyStatLabel}>Production Model</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {loading && (
-            <div style={styles.loading}>
-              <div style={styles.loadingSpinner} />
-              <p style={styles.loadingText}>
-                Running prediction pipeline...<br />
-                <span style={styles.loadingSubText}>
-                  XGBoost inference → SHAP attribution → LlamaIndex RAG → LangGraph agent
-                </span>
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div style={styles.error}>
-              <span style={styles.errorIcon}>⚠</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          {result && !loading && (
-            <div style={styles.results}>
-              <RiskCard result={result} />
-              <div style={styles.twoCol}>
-                <ShapChart drivers={result.shap_drivers} />
-                <SimilarCustomers customers={result.similar_customers} />
-              </div>
-              <AiBrief brief={result.retention_brief} score={result.ragas_score} />
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  );
+import {useEffect,useState} from 'react';
+import './style.css';
+const pct=n=>n==null?'Unavailable':(n*100).toFixed(1)+'%';
+async function post(path,data){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json();if(!r.ok)throw Error('Review the input values and try again.');return d;}
+export default function App(){
+ const [info,setInfo]=useState(null),[profile,setProfile]=useState(null),[queue,setQueue]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[threshold,setThreshold]=useState(.5);
+ const [form,setForm]=useState({tenure:12,monthly_charges:65,contract:'Month-to-month',internet_service:'DSL',payment_method:'Electronic check'});
+ useEffect(()=>{fetch('/model-info').then(r=>{if(!r.ok)throw Error('Model evaluation is currently unavailable.');return r.json()}).then(setInfo).catch(e=>setError(e.message));},[]);
+ const change=(k,v)=>{setForm({...form,[k]:v});setProfile(null);};
+ async function run(e){e.preventDefault();setBusy(true);setError('');setProfile(null);try{setProfile(await post('/predict',form));}catch(e){setError(e.message);}finally{setBusy(false);}}
+ async function review(){setBusy(true);setError('');setQueue(null);try{setQueue(await post('/review',{threshold}));}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <main>
+ <header><p className="eyebrow">SANJAY SARELLA · DATA ANALYTICS PORTFOLIO</p><h1>Customer Churn Intelligence</h1><p>Evaluate a customer profile, compare it with an observed peer segment, and translate a model threshold into a measurable review workload.</p></header>
+ <aside><strong>Decision scope:</strong> This application supports prioritization and model evaluation using historical telecom data. Scores are estimates; retention interventions and recovered revenue are outside the dataset.</aside>
+ {error&&<p role="alert">{error}</p>}
+ <section className="workspace"><div className="section-intro"><span className="step">01</span><div><h2>Evaluate a customer profile</h2><p>Enter five operational attributes to calculate a model score and compare it with customers sharing the same contract and internet-service segment.</p></div></div>
+ <form onSubmit={run}>
+ <label>Customer tenure<span className="hint">Months with the provider</span><input required aria-label="Customer tenure in months" type="number" min="0" max="72" step="1" value={form.tenure} onChange={e=>change('tenure',Number(e.target.value))}/></label>
+ <label>Monthly service charges<span className="hint">US dollars</span><input required aria-label="Monthly service charges in dollars" type="number" min="18.25" max="118.75" step="0.01" value={form.monthly_charges} onChange={e=>change('monthly_charges',Number(e.target.value))}/></label>
+ {[['contract','Contract term',['Month-to-month','One year','Two year']],['internet_service','Internet service',['DSL','Fiber optic','No']],['payment_method','Payment method',['Electronic check','Mailed check','Bank transfer (automatic)','Credit card (automatic)']]].map(([k,label,options])=><label key={k}>{label}<select value={form[k]} onChange={e=>change(k,e.target.value)}>{options.map(o=><option key={o}>{o}</option>)}</select></label>)}
+ <button className="primary" disabled={busy||!info}>{busy?'Calculating score…':'Calculate churn score'}</button></form>
+ {profile&&<><div className="cards"><article><span>Profile churn score</span><h2>{pct(profile.score)}</h2></article><article><span>Comparable customer records</span><h2>{profile.segment_count.toLocaleString()}</h2></article><article><span>Observed peer-segment churn</span><h2>{pct(profile.segment_churn_rate)}</h2></article></div><p className="method">{profile.interpretation}</p><details><summary>Profile inputs used in this calculation</summary><pre>{JSON.stringify(profile.inputs,null,2)}</pre></details></>}
+ </section>
+ <section><div className="section-intro standalone"><span className="step">02</span><div><h2>Review model validation</h2><p>Assess discrimination, probability quality, and calibration on data excluded from model training.</p></div></div>
+ {info?<><div className="evaluation-summary"><strong>{info.model}</strong><span>{info.training_rows.toLocaleString()} training records</span><span>{info.test_rows.toLocaleString()} holdout records</span><span>{info.dataset_rows.toLocaleString()} total records</span></div><p className="method">{info.split}</p>
+ <table><thead><tr><th>Validation measure</th><th>Model result</th><th>Constant-rate baseline</th></tr></thead><tbody><tr><td>ROC-AUC <small>Higher is better</small></td><td>{info.roc_auc.toFixed(3)}</td><td>0.500</td></tr><tr><td>Average precision <small>Higher is better</small></td><td>{info.average_precision.toFixed(3)}</td><td>{info.test_churn_rate.toFixed(3)}</td></tr><tr><td>Brier score <small>Lower is better</small></td><td>{info.brier_score.toFixed(3)}</td><td>{info.baseline_brier.toFixed(3)}</td></tr><tr><td>Log loss <small>Lower is better</small></td><td>{info.log_loss.toFixed(3)}</td><td>{info.baseline_log_loss.toFixed(3)}</td></tr></tbody></table>
+ {info.capacity_example&&<aside><strong>Capacity example:</strong> At a 70% review threshold, the historical holdout selects {info.capacity_example.selected} of {info.capacity_example.total} profiles, with {pct(info.capacity_example.precision)} precision and {pct(info.capacity_example.recall)} recall. This is a workload scenario, not a prescribed policy; the operating threshold depends on review capacity and intervention cost.</aside>}
+ <details><summary>Inspect score calibration</summary><table><thead><tr><th>Mean estimated score</th><th>Observed churn rate</th></tr></thead><tbody>{info.calibration.map((r,i)=><tr key={i}><td>{pct(r.mean_score)}</td><td>{pct(r.observed_churn)}</td></tr>)}</tbody></table><p>Five similarly sized holdout groups compare estimated scores with observed outcomes.</p></details><p className="method">{info.limitations}</p></>:<p>Loading model validation…</p>}</section>
+ <section className="workspace"><div className="section-intro"><span className="step">03</span><div><h2>Set the review threshold</h2><p>See how a score cutoff changes workload, precision, and recall before defining an operational review policy.</p></div></div>
+ <div className="threshold-control"><label>Review profiles scoring at least <strong>{pct(threshold)}</strong><input type="range" min="0" max="1" step="0.05" value={threshold} onChange={e=>{setThreshold(Number(e.target.value));setQueue(null);}}/></label><button className="primary" onClick={review} disabled={busy||!info}>{busy?'Evaluating threshold…':'Evaluate threshold'}</button></div>
+ {queue&&<><div className="cards queue-cards"><article><span>Profiles selected</span><h2>{queue.selected} of {queue.total}</h2></article><article><span>Selection precision</span><h2>{pct(queue.precision)}</h2></article><article><span>Churn recall</span><h2>{pct(queue.recall)}</h2></article></div><p className="method">{queue.note}</p><p className="section-note">Precision is the share of selected holdout records that churned. Recall is the share of all churned holdout records selected. The first 50 selected records are shown.</p><table><thead><tr><th>Anonymous review ID</th><th>Model score</th><th>Contract term</th><th>Observed holdout outcome</th></tr></thead><tbody>{queue.rows.slice(0,50).map(r=><tr key={r['Review ID']}><td>{r['Review ID']}</td><td>{pct(r.Score)}</td><td>{r.Contract}</td><td>{r.Churn}</td></tr>)}</tbody></table></>}
+ </section>
+ <footer><strong>Data source:</strong> Repository Telco customer dataset. The model uses five declared inputs; demographic fields and synthetic total charges are excluded.<details><summary>Data quality and reproducibility</summary>{info?.quality&&<p>{info.quality.duplicate_customer_ids} duplicate customer IDs; {info.quality.missing_model_inputs} missing declared model inputs; {info.quality.unexpected_target_labels} unexpected target labels.</p>}<code>{info?.sha256}</code></details></footer></main>;
 }
-
-const styles = {
-  root: {
-    background: "#0D0D0D",
-    color: "#F0F0F0",
-    minHeight: "100vh",
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-  },
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "18px 40px",
-    borderBottom: "1px solid #1A1A1A",
-    position: "sticky",
-    top: 0,
-    background: "rgba(13,13,13,0.95)",
-    backdropFilter: "blur(12px)",
-    zIndex: 100,
-  },
-  navLogo: {
-    fontSize: 13,
-    fontWeight: 700,
-    letterSpacing: "0.12em",
-    color: "#00FF8C",
-  },
-  navSub: {
-    fontSize: 12,
-    color: "#444",
-    letterSpacing: "0.06em",
-  },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "360px 1fr",
-    minHeight: "calc(100vh - 57px)",
-  },
-  sidebar: {
-    borderRight: "1px solid #1A1A1A",
-    padding: "32px 24px",
-    overflowY: "auto",
-  },
-  sidebarHeader: {
-    marginBottom: 28,
-  },
-  sidebarTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    margin: "0 0 6px 0",
-    letterSpacing: "-0.01em",
-  },
-  sidebarSub: {
-    fontSize: 13,
-    color: "#555",
-    margin: 0,
-  },
-  main: {
-    padding: "40px",
-    overflowY: "auto",
-  },
-  empty: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "60vh",
-    textAlign: "center",
-    maxWidth: 480,
-    margin: "0 auto",
-  },
-  emptyIcon: {
-    fontSize: 48,
-    color: "#222",
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: 400,
-    margin: "0 0 12px 0",
-    color: "#888",
-  },
-  emptySub: {
-    fontSize: 14,
-    color: "#444",
-    lineHeight: 1.7,
-    margin: "0 0 40px 0",
-  },
-  emptyStats: {
-    display: "flex",
-    alignItems: "center",
-    gap: 0,
-  },
-  emptyStat: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    padding: "0 28px",
-  },
-  emptyStatNum: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: "#00FF8C",
-    letterSpacing: "-0.02em",
-  },
-  emptyStatLabel: {
-    fontSize: 11,
-    color: "#333",
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-  },
-  emptyStatDiv: {
-    width: 1,
-    height: 32,
-    background: "#1E1E1E",
-  },
-  loading: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "60vh",
-    gap: 24,
-  },
-  loadingSpinner: {
-    width: 40,
-    height: 40,
-    border: "2px solid #1E1E1E",
-    borderTop: "2px solid #00FF8C",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 1.8,
-  },
-  loadingSubText: {
-    fontSize: 12,
-    color: "#333",
-    letterSpacing: "0.04em",
-  },
-  error: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    background: "#1A0A0A",
-    border: "1px solid #3D1515",
-    borderRadius: 10,
-    padding: "16px 20px",
-    color: "#FF6B6B",
-    fontSize: 14,
-  },
-  errorIcon: {
-    fontSize: 18,
-  },
-  results: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
-  },
-  twoCol: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 24,
-  },
-};
