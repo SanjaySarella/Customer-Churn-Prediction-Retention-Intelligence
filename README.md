@@ -1,31 +1,40 @@
-# Customer Churn Analysis
+# Customer Churn Decision Analysis
 
-A historical telecom study by Sanjay Sarella. Three outputs: profile score with observed segment context, independent holdout evaluation, and a threshold-based review workload simulation.
+An evidence-bounded analytics case study that scores a customer profile, compares it with an observed peer segment, evaluates a transparent model on held-out data, and translates score thresholds into measurable review workload.
 
-## Model and evidence
+## Dataset
 
-The model is a logistic regression baseline with five declared inputs: tenure, monthly charges, contract, internet service and payment method. Demographics, fabricated total charges, unsolicited discounts, AI quality percentages and claimed savings are excluded from the supported runtime.
+The application uses 7,043 telecom customer records. Five declared operational inputs are used: tenure, monthly charges, contract, internet service, and payment method. Customer IDs are checked for uniqueness, model inputs are checked for missing values, and target labels are validated before training.
 
-7,043 unique customer records are split into 5,634 training and 1,409 test records using a stratified 80/20 split and seed 42. Numeric imputation/scaling and categorical encoding are fitted inside a pipeline on training data only. Model settings are fixed, not selected using holdout results. The app reports ROC-AUC, average precision, Brier score, log loss and five-bin calibration evidence. Its comparison is a constant training-churn-rate baseline. This is historical internal validation, not external or future-period validation.
+## Workflow
 
-Observed local results: ROC-AUC 0.8323; average precision 0.6267; Brier score 0.1424 versus 0.1950 baseline; log loss 0.4303 versus 0.5787 baseline. Reproduce using the exact dependency versions and data fingerprint before comparing releases. No claim is made that this model outperforms the retired XGBoost model, which was not re-evaluated under this new protocol.
+1. Validate identifiers, inputs, and churn labels.
+2. Create a stratified 80/20 train-holdout split with a fixed seed.
+3. Fit preprocessing and logistic regression on the training partition only.
+4. Evaluate ROC-AUC, average precision, Brier score, log loss, and calibration on 1,409 held-out records.
+5. Compare probability quality with a constant-rate baseline.
+6. Explore how a threshold changes review volume, precision, and recall.
 
-Profile scores are estimates, not individual certainty. Same-contract/internet segment rates are descriptive, not causal explanations. The dataset supplies no reliable prediction horizon or intervention outcome. Review thresholds are explored on held-out historical records for illustration; choosing a policy after inspecting these results requires fresh independent evaluation. Customer IDs are not displayed in the review list.
+## Decision supported
 
-## Run and test
+The project supports a review-capacity decision: how many customer profiles would be selected at a chosen score threshold, and what historical precision-recall tradeoff did that threshold produce? It does not claim that changing a customer attribute causes churn, prescribe a retention offer, or estimate recovered revenue.
 
-```sh
-python -m pip install -r backend/requirements.txt pytest httpx
-cd frontend
-npm ci --legacy-peer-deps
-npm run build
-cd ..
-cp -r frontend/build static
-python -m uvicorn backend.main:app --port 8080
+## Validation
+
+The model achieved a holdout ROC-AUC of approximately 0.832 and average precision of approximately 0.627. Preprocessing is fitted only on the training partition. Tests verify split separation, preprocessing state, repeatable scores, peer-segment reconciliation, threshold endpoints, input rejection, and data-quality outputs.
+
+## Tools
+
+Python, pandas, scikit-learn, FastAPI, React, pytest, Docker, Google Cloud Run. The portable SQL preparation and quality checks are documented in `sql/analysis.sql`.
+
+## Run locally
+
+```bash
+pip install -r requirements.txt
+pytest -q
+python validation/acceptance.py
 ```
 
-`python -m pytest tests -q` verifies split isolation, train-only preprocessing, deterministic scores, segment reconciliation, threshold endpoints and API rejection of invalid or undeclared inputs. Historical agent modules, notebooks and figures are retained for provenance only, not used by the supported runtime. The old Streamlit entry point is retired.
+## Live application
 
-## Deployment boundary
-
-Candidate implementation, not deployed. Preserve the existing `churn-intelligence-app` Cloud Run service and URL. Confirm its project, region, configuration and rollback revision before staging. Container and live-browser verification remain required; cloud deployment access is not available in the current environment.
+https://churn-intelligence-app-646m5mi6fq-uc.a.run.app/
