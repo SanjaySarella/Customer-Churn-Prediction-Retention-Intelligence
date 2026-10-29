@@ -10,7 +10,7 @@ export default function App(){
  async function run(e){e.preventDefault();setBusy(true);setError('');setProfile(null);try{setProfile(await post('/predict',form));}catch(e){setError(e.message);}finally{setBusy(false);}}
  async function review(){setBusy(true);setError('');setQueue(null);try{setQueue(await post('/review',{threshold}));}catch(e){setError(e.message);}finally{setBusy(false);}}
  return <main>
- <header><p className="eyebrow">SANJAY SARELLA · CUSTOMER ANALYTICS</p><h1>Customer Churn Intelligence</h1><p>Evaluate a customer profile, compare it with an observed peer segment, and translate a model threshold into a measurable review workload.</p></header>
+ <header><p className="eyebrow">SANJAY SARELLA · DATA ANALYTICS PORTFOLIO</p><h1>Customer Churn Intelligence</h1><p>Evaluate a customer profile, compare it with an observed peer segment, and translate a model threshold into a measurable review workload.</p></header>
  <aside><strong>Decision scope:</strong> This application supports prioritization and model evaluation using historical telecom data. Scores are estimates; retention interventions and recovered revenue are outside the dataset.</aside>
  {error&&<p role="alert">{error}</p>}
  <section className="workspace"><div className="section-intro"><span className="step">01</span><div><h2>Evaluate a customer profile</h2><p>Enter five operational attributes to calculate a model score and compare it with customers sharing the same contract and internet-service segment.</p></div></div>
